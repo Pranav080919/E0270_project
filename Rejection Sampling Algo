@@ -1,0 +1,72 @@
+"""
+This program demonstrates the ability of rejection sampling to sample from uniform distribution.
+The aim is to determine efficiency of sampling in terms of 'Accept ratio'.
+The guess function 'q(x)' is taken as the Gaussian with the same mean as the uniform distribution - this is done to
+reduce value of 'M' and thus, increase acceptance ratio (verified by running many test trials).
+Same q(x) will be used to sample from a uniform distribution with different mean.
+"""
+
+import numpy as np
+import scipy.stats as st
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+sns.set()
+
+
+def p1(x):
+    return st.uniform.pdf(x, -30, 60)*2
+def p2(x):
+    return st.uniform.pdf(x, -30, 30)*2
+
+def q(x):
+    return st.norm.pdf(x, 0, 25)
+
+x = np.arange(-100, 100)
+
+M1 = max(p1(x)/q(x))
+M2 = max(p2(x)/q(x))
+
+A1, err1 = quad(p1, -100, 100)
+A2, err2 = quad(p2, -100, 100)
+#print(A) #Normalizing constant - divide by A to normalize
+
+def t1(x):
+    return p1(x)/A1
+def t2(x):
+    return p2(x)/A2
+
+def rejection_sampling(steps, p, M):
+    samples = []
+    accept = 0
+    total = 0
+    for i in range(steps):
+        z = np.random.normal(0, 25)
+        u = np.random.uniform(0, 1)
+        if u <= p(z)/(M*q(z)):
+            samples.append(z)
+            accept += 1
+            total += 1
+        else:
+            total += 1
+    print(f"\nAccept ratio: {accept/total}")
+    return np.array(samples)
+
+
+if __name__ == '__main__':
+    plt.title("Rejection Sampling")
+    plt.plot(x, p1(x), label="target distribution")
+    plt.plot(x, M1*q(x), label="easy distribution")
+    plt.plot(x, t1(x), label="normalized target distribution")
+    s = rejection_sampling(100000, p1, M1)
+    plt.hist(s, density=True, bins=range(-100, 100 + 1, 1), label="samples histogram")
+    plt.legend()
+    plt.show()
+
+    plt.plot(x, p2(x), label="target distribution")
+    plt.plot(x, M2*q(x), label="easy distribution")
+    plt.plot(x, t2(x), label="normalized target distribution")
+    s = rejection_sampling(100000, p2, M2)
+    plt.hist(s, density=True, bins=range(-100, 100 + 1, 1), label="samples histogram")
+    plt.legend()
+    plt.show()
