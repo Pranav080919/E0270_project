@@ -1,0 +1,72 @@
+import time
+import numpy as np
+import scipy.stats as st
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+sns.set()
+
+
+def target_dist(x):
+    return st.norm.pdf(x/5)*5
+
+def tar_val(x):
+    return st.norm().pdf(x/5)*5
+
+x = np.arange(-100, 100)
+
+# Normalizing constant
+A, err = quad(target_dist, -100, 100)
+
+def t(x):
+    return target_dist(x)/A
+
+# Function for potential energy - negative log probability
+def U(x):
+    return -np.log(tar_val(x))
+
+def dUdx(x_i):
+    return x_i/25
+
+def H(x, p):
+    return U(x) + p**2
+
+
+def HMC(iterations, step_size):
+    samples = []
+    accept = 0
+    total = 0
+    x_init = 0
+    for i in range(iterations):
+        p_init = np.random.normal(0, 1)
+        p_new = p_init - step_size*dUdx(x_init)/2
+        x_new = x_init + step_size*p_new
+        p_new = p_new - step_size*dUdx(x_new)/2
+
+        A = np.exp(H(x_new, p_new)-H(x_init, p_init))
+        u = np.random.uniform(0, 1)
+
+        if u < A:
+            samples.append(x_new)
+            x_init = x_new
+            accept += 1
+            total += 1
+        else:
+            samples.append(x_init)
+            total += 1
+
+    print(f"\nAccept ratio: {accept/total}")
+    return np.array(samples[100:])
+
+
+if __name__ == '__main__':
+    start_time = time.time()
+    plt.plot(x, target_dist(x))
+    plt.plot(x, t(x))
+    h = HMC(10000, 0.5)
+    plt.hist(h, density=True, bins=range(-100, 100 + 1, 1))
+    plt.show()
+    print(f"Time taken: {time.time() - start_time}")
+
+
+### We have used HMC to sample from a zero mean 1D Gaussian ###
