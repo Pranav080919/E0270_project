@@ -1,0 +1,89 @@
+"""
+In this program, we carry out sampling with Hamiltonian Monte Carlo method, using Leapfrog integrator method to
+propose new samples
+"""
+
+import time
+import numpy as np
+import scipy.stats as st
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+sns.set()
+
+
+def target_dist(x):
+    return st.norm.pdf(x, -30, 5) + st.norm.pdf(x, 20, 2) + st.expon.pdf(-x/4, -14, 5)*0.8 + st.uniform.pdf(x, 20, 60)*1.5
+
+def tar_val(x):
+    return st.norm(-30, 5).pdf(x) + st.norm(20, 2).pdf(x) + st.expon(-14, 5).pdf(-x/4)*0.8 + st.uniform(20, 60).pdf(x)*1.5
+
+x = np.arange(-100, 100)
+
+# Normalizing constant
+A, err = quad(target_dist, -100, 100)
+
+def t(x):
+    return target_dist(x)/A
+
+# Function for potential energy - negative log probability
+def neg_log_prob_dist(x):
+    return -np.log(target_dist(x))
+
+def neg_log_prob_val(x):
+    return -np.log(tar_val(x))
+
+def H(x, p):
+    return neg_log_prob_val(x) + p**2
+
+# Function for gradient of potential energy - required in update
+def dUdx(x_init):
+    if x_init<56:
+        return -(st.norm(-30, 5).pdf(x_init)*(-30-x_init) + st.norm(20, 2).pdf(x_init)*(20-x_init) + st.expon(-14, 5).pdf(-x_init/4)
+            *0.8*(-14+(x_init/4)))/tar_val(x_init)
+    else:
+        return 0
+
+
+def HMC(iterations, step_size):
+    samples = []
+    accept = 0
+    total = 0
+    x_init = 0
+    for i in range(iterations):
+        p_init = np.random.normal(0, 3)
+        p_new = p_init - step_size*dUdx(x_init)/2
+        x_new = x_init + step_size*p_new
+        p_new = p_new - step_size*dUdx(x_new)/2
+
+        A = np.exp(H(x_new, p_new)-H(x_init, p_init))
+        u = np.random.uniform(0, 1)
+
+        if u < A:
+            samples.append(x_new)
+            x_init = x_new
+            accept += 1
+            total += 1
+        else:
+            samples.append(x_init)
+            total += 1
+
+    print(f"\nAccept ratio: {accept/total}")
+    return np.array(samples[1000:])
+
+
+if __name__ == '__main__':
+    start_time = time.time()
+    plt.plot(x, target_dist(x))
+    plt.plot(x, t(x))
+    h = HMC(10000, 1)
+    plt.hist(h, density=True, bins=range(-100, 100 + 1, 1))
+    plt.show()
+    print(f"Time taken: {time.time() - start_time}")
+
+
+
+
+
+
+### This program does not work as planned, possible error in gradient computation ###
