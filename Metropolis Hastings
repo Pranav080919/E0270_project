@@ -1,0 +1,74 @@
+"""
+Implementation of Metropolis-Hastings algorithm with an asymmetric proposal distribution - for the given 'complex'
+distribution we are sampling from, we choose a crystalball pdf with higher probabilities for higher x - this was done
+to increase number of samples from the higher x-value region which might be useful in our case
+"""
+import time
+import numpy as np
+import scipy.stats as st
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+sns.set()
+
+
+def target_dist(x):
+    return st.norm.pdf(x, -30, 5) + st.norm.pdf(x, 20, 2) + st.expon.pdf(-x/4, -14, 5)*0.8 + st.uniform.pdf(x, 20, 60)*1.5
+
+def prop_dist(x, beta, m, loc, scale):
+    return st.crystalball.pdf(x, beta=beta, m=m, loc=loc, scale=scale)
+
+def mag_prop_dist(x, beta, m, loc, scale):
+    return st.crystalball.pdf(x, beta=beta, m=m, loc=loc, scale=scale)*20
+
+x = np.arange(-100, 100)
+
+def tar_val(x):
+    return st.norm(-30, 5).pdf(x) + st.norm(20, 2).pdf(x) + st.expon(-14, 5).pdf(-x/4)*0.8 + st.uniform(20, 60).pdf(x)*1.5
+
+def prop_val(x, beta, m, loc, scale):
+    return st.crystalball(beta, m, loc, scale).pdf(x)
+
+# Initial Guess
+x_init = 0
+
+# Normalizing constant
+A, err = quad(target_dist, -100, 100)
+
+def t(x):
+    return target_dist(x)/A
+
+def MH(x_init, iterations, beta, m, loc, scale):
+    samples = []
+    accept = 0
+    total = 0
+    for i in range(iterations):
+        # Generate random point from initial proposal
+        z = st.crystalball.rvs(beta, m, loc, scale)
+
+        # Define acceptance probability
+        A = tar_val(z)/tar_val(x_init) * prop_val(z, beta, m, loc, scale)/prop_val(x_init, beta, m, loc, scale)
+
+        u = np.random.uniform(0, 1)
+
+        if u < min(1, A):
+            samples.append(z)
+            x_init = z
+            loc = z
+            accept += 1
+            total += 1
+        else:
+            samples.append(x_init)
+            total += 1
+    print(f"\nAccept ratio: {accept/total}")
+    return np.array(samples[1000:])
+
+if __name__ == '__main__':
+    start_time = time.time()
+    plt.plot(x, target_dist(x))
+    plt.plot(x, t(x))
+    plt.plot(x, mag_prop_dist(x, 1, 1.5, 40, 50), label="magnified proposal distribution")
+    m = MH(0, 100000, 1, 1.5, 40, 50)
+    plt.hist(m, density=True, bins=range(-100, 100 + 1, 1))
+    plt.show()
+    print(f"Time taken: {time.time() - start_time}")
