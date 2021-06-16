@@ -1,0 +1,67 @@
+"""
+Implementation of Metropolis-Hastings algorithm with a symmetric proposal distribution - Gaussian
+"""
+import time
+import numpy as np
+import scipy.stats as st
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+sns.set()
+
+
+def target_dist(x):
+    return st.norm.pdf(x, -30, 5) + st.norm.pdf(x, 20, 2) + st.expon.pdf(-x/4, -14, 5)*0.8 + st.uniform.pdf(x, 20, 60)*1.5
+
+def prop_dist(x, mu, sigma):
+    return st.norm.pdf(x, mu, sigma)
+
+x = np.arange(-100, 100)
+
+def tar_val(x):
+    return st.norm(-30, 5).pdf(x) + st.norm(20, 2).pdf(x) + st.expon(-14, 5).pdf(-x/4)*0.8 + st.uniform(20, 60).pdf(x)*1.5
+
+# Initial Guess
+x_init = 0
+
+
+A, err = quad(target_dist, -100, 100)
+#print(A) #Normalizing constant - divide by A to normalize
+
+def t(x):
+    return target_dist(x)/A
+
+def MH(x_init, iterations, mu, sigma):
+    samples = []
+    accept = 0
+    total = 0
+    for i in range(iterations):
+        # Generate random point from initial proposal
+        z = np.random.normal(mu, sigma)
+
+        # Define acceptance ratio
+        A = tar_val(z)/tar_val(x_init)
+
+        u = np.random.uniform(0, 1)
+
+        if u < min(1, A):
+            samples.append(z)
+            x_init = z
+            mu = z
+            accept += 1
+            total += 1
+        else:
+            samples.append(x_init)
+            total += 1
+    print(f"\nAccept ratio: {accept/total}")
+    return np.array(samples[1000:])
+
+if __name__ == '__main__':
+    start_time = time.time()
+    plt.plot(x, target_dist(x))
+    plt.plot(x, t(x))
+    plt.plot(x, prop_dist(x, 0, 10))
+    m = MH(0, 100000, 0, 10)
+    plt.hist(m, density=True, bins=range(-100, 100 + 1, 1))
+    plt.show()
+    print(f"Time taken: {time.time() - start_time}")
