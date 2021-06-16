@@ -1,0 +1,62 @@
+"""
+Till now, we tested rejection sampling on 'clean'/'easy' function - 'p(x)' was proportional to a mixture of uniform
+distributions.
+To simulate real world distributions which are not as clean, we define 'p(x)' as a mixture of various types of pdf's
+and try to demonstrate the weaknesses of rejection sampling.
+"""
+
+import time
+import numpy as np
+import scipy.stats as st
+import seaborn as sns
+import matplotlib.pyplot as plt
+from scipy.integrate import quad
+sns.set()
+
+
+def p(x):
+    return st.norm.pdf(x, -30, 5) + st.norm.pdf(x, 20, 2) + st.expon.pdf(-x/4, -14, 5)*0.8 + st.uniform.pdf(x, 20, 60)*1.5
+
+def q(x):
+    return st.norm.pdf(x, 25, 40)
+
+x = np.arange(-100, 100)
+
+M = max(p(x)/q(x))
+
+A, err = quad(p, -100, 100)
+#print(A) #Normalizing constant - divide by A to normalize
+
+def t(x):
+    return p(x)/A
+
+def rejection_sampling(steps):
+    samples = []
+    accept = 0
+    total = 0
+    for i in range(steps):
+        z = np.random.normal(25, 40)
+        u = np.random.uniform(0, 1)
+        if u <= p(z)/(M*q(z)):
+            samples.append(z)
+            accept += 1
+            total += 1
+        else:
+            total += 1
+    print(f"\nAccept ratio: {accept/total}")
+    return np.array(samples)
+
+
+
+if __name__ == '__main__':
+    start_time = time.time()
+    plt.title("Rejection Sampling")
+    plt.plot(x, p(x), label="target distribution")
+    plt.plot(x, M*q(x), label="easy distribution")
+    plt.plot(x, t(x), label="normalized target distribution")
+    s = rejection_sampling(100000)
+    plt.hist(s, density=True, bins=range(-100, 100 + 1, 1), label="samples histogram")
+    plt.legend()
+    plt.show()
+    s = rejection_sampling(10000)
+    print(f"\nTime taken: {time.time() - start_time}")
